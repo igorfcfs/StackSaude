@@ -3,6 +3,26 @@ export const produtos = [
     slug: 'protocolo-neuro-reset', // A URL da página
     pixelMetaId: process.env.NEXT_PUBLIC_META_PIXEL_NEURO || '',  // ID do Pixel do Meta Ads (Facebook)
     googleAnalyticsId: process.env.NEXT_PUBLIC_GOOGLE_ADS_NEURO || '', // ID do Google Analytics 4 (GA4)
+
+    // ==========================================
+    // DADOS DA PRESELL (ADVERTORIAL)
+    // ==========================================
+    presell: {
+      categoria: 'TDAH, Ansiedade, Fadiga Mental',
+      titulo: 'Pesquisador revela a causa biológica por trás da fadiga mental constante (e como reverter isso em 21 dias)',
+      dataPublicacao: '09 de Março de 2026',
+      citacaoDestacada: '"Nós estamos exigindo que o cérebro humano processe em um dia a quantidade de estímulos que nossos ancestrais processavam em um ano", explica o relatório.',
+      chamadaCta: 'Assista à apresentação completa do método:',
+      paragrafos: [
+        'Você já acordou se sentindo exausto, mesmo após dormir 8 horas? Sente que sua capacidade de focar em uma leitura ou no trabalho despencou nos últimos anos? Você não está sozinho.',
+        'Um novo alerta na comunidade de biologia comportamental aponta que a dificuldade de concentração que afeta milhões de adultos hoje <strong>não é um problema de falta de disciplina ou preguiça.</strong> É um mecanismo de defesa do seu próprio corpo.',
+        'O fenômeno, conhecido nos bastidores da tecnologia como <em>Dopamine Downregulation</em> (regulação para baixo da dopamina), ocorre quando o uso excessivo de telas, redes sociais e vídeos curtos sobrecarrega o sistema de recompensa do cérebro. Para se proteger dessa "overdose" de estímulos rápidos, o cérebro literalmente reduz a sensibilidade dos seus receptores.',
+        'O resultado prático na sua rotina? Uma sensação constante de "névoa mental", falta de energia vital e a dependência de viver no piloto automático.',
+        'Mas há uma boa notícia. A neuroplasticidade — a capacidade do cérebro de se remodelar — permite que esse dano seja revertido. E não exige o uso de medicamentos estimulantes.',
+        'O pesquisador independente Millani, especialista em dependência comportamental, desenvolveu um método de engenharia de ambiente que força o cérebro a restaurar esses receptores de forma mecânica.',
+        'Ele gravou um <strong>vídeo curto e explicativo</strong> detalhando exatamente como funciona esse mecanismo e como qualquer pessoa pode aplicar o protocolo de "reset" biológico em 21 dias para recuperar o foco profundo e a energia natural.'
+      ]
+    },
     
     // 1. Header da VSL
     headlineStart: 'COMO REVERTER A EXAUSTÃO MENTAL E A FALTA DE FOCO EM',
