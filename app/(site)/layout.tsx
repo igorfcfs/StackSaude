@@ -1,61 +1,71 @@
 import Link from 'next/link';
-import '@/app/globals.css'; // Certifique-se de que o Tailwind está importado aqui
+import '@/app/globals.css'; // Certifique-se de que o Tailwind está importado aqui7
+import Image from 'next/image';
+import Navbar from '@/components/Navbar';
 
 export const metadata = {
-  title: 'Stack Saúde | Assuma o controle da sua biologia',
+  title: 'Stack Saúde | Assuma o controle da sua saúde',
   description: 'Ciência, nutrição e suplementação avançada para performance real.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className="scroll-smooth">
-      <body className="min-h-screen bg-gray-50 text-gray-900 font-sans flex flex-col">
+      <body className="min-h-screen bg-white-80 font-sans flex flex-col">
         
-        {/* NAVBAR GLOBAL */}
-        <header className="w-full bg-white/90 backdrop-blur-md shadow-sm sticky top-0 z-50 border-b border-gray-100">
-          <div className="max-w-6xl mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
-            <Link href="/" className="text-2xl font-black tracking-tighter text-blue-700">
-              Stack Saúde
-            </Link>
-            <nav className="flex flex-wrap justify-center gap-6 text-sm font-semibold text-gray-600">
-              <Link href="/sobre" className="hover:text-blue-600 transition">A Marca</Link>
-              <Link href="/#solucoes" className="hover:text-blue-600 transition">Soluções</Link>
-              <Link href="/contato" className="hover:text-blue-600 transition">Contato</Link>
-            </nav>
-          </div>
-        </header>
+        <Navbar />
 
         {/* AQUI É ONDE CADA PÁGINA VAI RENDERIZAR */}
         <main className="flex-grow">
           {children}
         </main>
 
-        {/* FOOTER GLOBAL */}
-        <footer className="bg-slate-950 text-slate-400 py-12 px-6 border-t border-slate-900 mt-auto">
-          <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8 mb-8 text-sm">
-            <div>
-              <div className="text-xl font-black text-white mb-4">Stack Saúde</div>
-              <p className="mb-2">CNPJ: 00.000.000/0000-00</p>
-              <p>contato@stacksaude.com.br</p>
+        {/* ========================================== */}
+        {/* RODAPÉ CORPORATIVO OFICIAL                 */}
+        {/* ========================================== */}
+        <footer className="bg-slate-950 text-slate-400 py-16 px-6">
+          <div className="max-w-7xl mx-auto grid md:grid-cols-4 gap-12 border-b border-slate-800 pb-12">
+            
+            <div className="md:col-span-2">
+              <Link href="/" className="flex items-center gap-3 mb-6">
+                <Image src="/LogoStackSaude.png" alt="Logo Stack Saúde" width={32} height={32} className="rounded-md grayscale hover:grayscale-0 transition-all" />
+                <span className="font-serif text-xl font-black text-white tracking-tight">Stack Saúde</span>
+              </Link>
+              <p className="text-sm leading-relaxed max-w-sm">
+                Pesquisa, desenvolvimento e aplicação prática em Biohacking, Nutrição e Neurociência para uma vida de alta performance.
+              </p>
+              <br></br>
+              <p className="text-sm leading-relaxed max-w-sm">
+                CNPJ: XX.XXX.XXX/0001-XX
+                <br></br>
+                Suporte: suporte@stacksaude.com.br
+              </p>
             </div>
+
             <div>
-              <h4 className="text-white font-bold mb-4 uppercase text-xs tracking-wider">Links Úteis</h4>
-              <ul className="space-y-2">
-                <li><Link href="/sobre" className="hover:text-white transition">Sobre a Marca</Link></li>
-                <li><Link href="/#solucoes" className="hover:text-white transition">Nossos Produtos</Link></li>
-                <li><Link href="/contato" className="hover:text-white transition">Suporte</Link></li>
+              <h4 className="text-white font-bold uppercase tracking-wider text-sm mb-6">Links Úteis</h4>
+              <ul className="space-y-4 text-sm">
+                <li><Link href="/protocolos" className="hover:text-sky-400 transition-colors">Nossos Protocolos</Link></li>
+                <li><Link href="/metodologia" className="hover:text-sky-400 transition-colors">Como Funciona</Link></li>
+                <li><Link href="/blog" className="hover:text-sky-400 transition-colors">Blog & Artigos</Link></li>
+                <li><Link href="/contato" className="hover:text-sky-400 transition-colors">Contato / Suporte</Link></li>
               </ul>
             </div>
+
             <div>
-              <h4 className="text-white font-bold mb-4 uppercase text-xs tracking-wider">Políticas</h4>
-              <ul className="space-y-2">
-                <li><Link href="/termos" className="hover:text-white transition">Termos de Uso</Link></li>
-                <li><Link href="/privacidade" className="hover:text-white transition">Privacidade</Link></li>
+              <h4 className="text-white font-bold uppercase tracking-wider text-sm mb-6">Legal</h4>
+              <ul className="space-y-4 text-sm">
+                <li><Link href="/termos-de-uso" className="hover:text-sky-400 transition-colors">Termos de Uso</Link></li>
+                <li><Link href="/politica-de-privacidade" className="hover:text-sky-400 transition-colors">Política de Privacidade</Link></li>
+                <li><Link href="/aviso-medico" className="hover:text-sky-400 transition-colors">Aviso Médico</Link></li>
               </ul>
             </div>
+
           </div>
-          <div className="max-w-6xl mx-auto text-center text-xs text-slate-600 pt-8 border-t border-slate-800">
-            <p>© {new Date().getFullYear()} Stack Saúde. Todos os direitos reservados.</p>
+
+          <div className="max-w-7xl mx-auto mt-8 text-center md:text-left text-xs flex flex-col md:flex-row justify-between items-center gap-4">
+            <p>&copy; {new Date().getFullYear()} Stack Saúde. Todos os direitos reservados.</p>
+            <p>Ambiente 100% Seguro e Criptografado.</p>
           </div>
         </footer>
 
