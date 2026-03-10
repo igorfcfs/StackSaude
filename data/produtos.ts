@@ -76,6 +76,21 @@ export const produtos = [
         pergunta: '2. Em quanto tempo terei resultados usando o método?',
         resposta: 'A redução na ansiedade é sentida nas primeiras 48h. A dissipação da névoa mental ocorre entre o 7º e 10º dia. O reset biológico completo dos receptores acontece em 21 dias.'
       }
-    ]
+    ],
+
+    upsell: {
+      // Usamos HTML aqui para você poder pintar as palavras de vermelho direto do banco
+      headline: 'Espere! Seu pedido <span class="text-red-600">ainda não está completo...</span>',
+      subheadline: 'Descubra o novo método acelerado para multiplicar seus resultados sem precisar dedicar horas do seu dia.',
+      videoId: 'FtukH_bCDHg',
+      delaySegundos: 10, // Quando o primeiro CTA da VSL de Upsell deve aparecer (em segundos)
+      tempoTimer: 15, // Minutos de escassez
+      textoBotaoSim: 'Sim, Eu Quero Acelerar Meus Resultados',
+      subtextoBotaoSim: 'Adicionar ao meu pedido por apenas R$ 97 (Única Chance)',
+      linkCheckout: 'https://pay.suaplataforma.com.br/upsell-1-clique',
+      textoBotaoNao: 'Não, muito obrigado. Eu prefiro continuar no ritmo normal e dispenso essa oferta exclusiva.',
+      rotaDownsell: '/condicao-especial', // O nome mascarado que você vai dar para a página de downsell
+      linkSuporte: 'https://wa.me/5511999999999'
+    }
   }
 ];
