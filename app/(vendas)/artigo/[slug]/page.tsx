@@ -161,12 +161,7 @@ export default function AdvertorialPage({ params }: { params: Promise<{ slug: st
 
       {/* RODAPÉ COMPLIANCE COM MODAL */}
       <FooterLegais />
-
-      {/* Rastreamento isolado desta presell */}
-      <Tracking 
-        pixelMetaId={produto.pixelMetaId} 
-        googleAnalyticsId={produto.googleAnalyticsId} 
-      />
+      
     </div>
   );
 }

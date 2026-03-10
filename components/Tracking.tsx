@@ -6,20 +6,19 @@ import { useEffect } from 'react';
 
 interface TrackingProps {
   pixelMetaId?: string;
-  googleAnalyticsId?: string; // <--- Nova propriedade para o Google
+  googleAnalyticsId?: string;
 }
 
 export default function Tracking({ pixelMetaId, googleAnalyticsId }: TrackingProps) {
   const pathname = usePathname();
 
-  // Dispara o PageView do Meta Ads a cada mudança de rota
+  // O ÚNICO LUGAR ONDE O PAGEVIEW DEVE SER DISPARADO (Controlado pelo Next.js)
   useEffect(() => {
     if (pixelMetaId && typeof window !== 'undefined' && (window as any).fbq) {
       (window as any).fbq('track', 'PageView');
     }
   }, [pathname, pixelMetaId]);
 
-  // Se não tiver nenhum dos dois, não renderiza nada
   if (!pixelMetaId && !googleAnalyticsId) return null;
 
   return (
@@ -40,7 +39,8 @@ export default function Tracking({ pixelMetaId, googleAnalyticsId }: TrackingPro
             'https://connect.facebook.net/en_US/fbevents.js');
             
             fbq('init', '${pixelMetaId}'); 
-            fbq('track', 'PageView');
+            
+            /* ATENÇÃO: A linha fbq('track', 'PageView'); foi removida daqui! */
           `}
         </Script>
       )}
