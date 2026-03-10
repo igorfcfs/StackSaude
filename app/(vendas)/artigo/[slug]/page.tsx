@@ -4,13 +4,13 @@ import { use, useState, useEffect } from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { produtos } from '@/data/produtos';
+import { funis } from '@/data/funis';
 import Tracking from '@/components/Tracking';
 import FooterLegais from '@/components/FooterLegais';
 
 export default function AdvertorialPage({ params }: { params: Promise<{ slug: string }> }) {
   const resolvedParams = use(params);
-  const produto = produtos.find((p) => p.slug === resolvedParams.slug);
+  const funil = funis.find((f) => f.slug === resolvedParams.slug);
   
   // Controle de estado para expandir a leitura
   const [mostrarMais, setMostrarMais] = useState(false);
@@ -35,9 +35,9 @@ export default function AdvertorialPage({ params }: { params: Promise<{ slug: st
     };
   }, []);
 
-  if (!produto || !produto.presell) return notFound();
+  if (!funil || !funil.presell) return notFound();
 
-  const { presell } = produto;
+  const { presell } = funil;
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 selection:bg-sky-100 selection:text-sky-900 pb-12">
@@ -95,7 +95,7 @@ export default function AdvertorialPage({ params }: { params: Promise<{ slug: st
 
         <div className="mb-6">
           <Link 
-            href={`/${produto.slug}`} 
+            href={`/${funil.slug}`} 
             className="text-sky-600 font-bold text-[1.1rem] md:text-[1.15rem] underline hover:text-sky-800 transition-colors"
           >
             » Assista aqui à apresentação vazada do método (Vídeo)
@@ -148,7 +148,7 @@ export default function AdvertorialPage({ params }: { params: Promise<{ slug: st
           </h3>
           
           <Link 
-            href={`/${produto.slug}`} 
+            href={`/${funil.slug}`} 
             className="block md:inline-block bg-emerald-500 text-white py-4 px-8 text-[1.1rem] md:text-[1.3rem] font-black uppercase rounded-md shadow-[0_4px_20px_rgba(16,185,129,0.3)] hover:bg-emerald-600 transition-colors w-full md:w-auto animate-scale-pulse"
           >
             Assistir ao Vídeo Explicativo »

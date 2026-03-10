@@ -4,13 +4,13 @@ import { useState, use, useEffect } from 'react';
 import { notFound } from 'next/navigation';
 import SmartVsl from '@/components/SmartVsl';
 import FaqAccordion from '@/components/FaqAccordion';
-import { produtos } from '@/data/produtos';
+import { funis } from '@/data/funis';
 import Tracking from '@/components/Tracking';
 
 export default function PaginaGenericaDeVendas({ params }: { params: Promise<{ slug: string }> }) {
   const [conteudoLiberado, setConteudoLiberado] = useState(false);
   const resolvedParams = use(params);
-  const produto = produtos.find((p) => p.slug === resolvedParams.slug);
+  const funil = funis.find((f) => f.slug === resolvedParams.slug);
 
   // ==========================================
   // LÓGICA DE BLOQUEIO DA SETINHA DE VOLTAR (100% LIMPA)
@@ -30,7 +30,7 @@ export default function PaginaGenericaDeVendas({ params }: { params: Promise<{ s
     };
   }, []);
 
-  if (!produto) return notFound();
+  if (!funil) return notFound();
 
   return (
     // Adicionado pb-24 no mobile para o conteúdo não ficar escondido atrás do Sticky CTA
@@ -44,17 +44,17 @@ export default function PaginaGenericaDeVendas({ params }: { params: Promise<{ s
         {/* HEADER DINÂMICO */}
         <header className="text-center mb-6">
           <h1 className="text-[1.5rem] md:text-[2.5rem] font-black uppercase leading-tight mb-3 text-slate-900">
-            {produto.headlineStart} <span className="text-sky-500">{produto.headlineHighlight}</span>
+            {funil.salespage.headlineStart} <span className="text-sky-500">{funil.salespage.headlineHighlight}</span>
           </h1>
           <p className="text-[1rem] md:text-[1.2rem] text-slate-500">
-            {produto.subheadline}
+            {funil.salespage.subheadline}
           </p>
         </header>
 
         {/* VSL COM DELAY */}
         <SmartVsl 
-          videoId={produto.videoId} 
-          tempoDelaySegundos={produto.delaySegundos} 
+          videoId={funil.salespage.videoId} 
+          tempoDelaySegundos={funil.salespage.delaySegundos} 
           onLiberarConteudo={() => setConteudoLiberado(true)} 
         />
       </section>
@@ -76,7 +76,7 @@ export default function PaginaGenericaDeVendas({ params }: { params: Promise<{ s
 
           {/* STORY BOXES DINÂMICAS */}
           <div className="mt-12">
-            {produto.copySecoes.map((secao, index) => (
+            {funil.salespage.copySecoes.map((secao, index) => (
               <section 
                 key={index} 
                 className={`p-6 md:p-[30px] rounded-lg mb-8 border ${secao.destaque ? 'bg-slate-100 border-slate-200 border-l-4 border-l-sky-500' : 'bg-white border-slate-200'}`}
@@ -95,12 +95,12 @@ export default function PaginaGenericaDeVendas({ params }: { params: Promise<{ s
             
             <div className="text-left bg-slate-50 p-4 md:p-5 rounded-md mb-[30px] border border-slate-200 text-[1rem] md:text-[1.1rem]">
               <p className="mb-2 flex justify-between">
-                <span>📚 {produto.oferta.nomeProduto}</span> 
-                <span className="text-slate-500">R$ {produto.oferta.precoOriginal}</span>
+                <span>📚 {funil.salespage.oferta.nomeProduto}</span> 
+                <span className="text-slate-500">R$ {funil.salespage.oferta.precoOriginal}</span>
               </p>
               
               {/* Renderiza os bônus dinamicamente */}
-              {produto.oferta.bonus.map((bonus, index) => (
+              {funil.salespage.oferta.bonus.map((bonus, index) => (
                 <p key={index} className="mb-2 flex justify-between">
                   <span>🎁 Bônus: {bonus.nome}</span> 
                   <span className="text-slate-500">R$ {bonus.valor}</span>
@@ -110,18 +110,18 @@ export default function PaginaGenericaDeVendas({ params }: { params: Promise<{ s
               <hr className="border-t border-slate-200 my-4" />
               <p className="text-right text-slate-500 font-bold flex justify-between">
                 <span>Valor Total:</span>
-                <span className="line-through text-red-500">R$ {produto.oferta.valorTotalFalso}</span>
+                <span className="line-through text-red-500">R$ {funil.salespage.oferta.valorTotalFalso}</span>
               </p>
             </div>
 
             <p className="text-[2.5rem] md:text-[3.5rem] font-black text-emerald-500 leading-none my-3">
-              {produto.oferta.parcelas}
+              {funil.salespage.oferta.parcelas}
             </p>
             <p className="mb-[30px] text-slate-500 font-medium text-sm md:text-base">
-              ou {produto.oferta.precoVista} à vista
+              ou {funil.salespage.oferta.precoVista} à vista
             </p>
             
-            <a href={produto.checkoutUrl} className="block w-full bg-emerald-500 text-white py-4 px-4 md:px-8 text-[1.1rem] md:text-[1.4rem] font-black uppercase rounded-md shadow-[0_4px_15px_rgba(16,185,129,0.3)] hover:bg-emerald-600 transition-colors animate-pulse-green">
+            <a href={funil.salespage.checkoutUrl} className="block w-full bg-emerald-500 text-white py-4 px-4 md:px-8 text-[1.1rem] md:text-[1.4rem] font-black uppercase rounded-md shadow-[0_4px_15px_rgba(16,185,129,0.3)] hover:bg-emerald-600 transition-colors animate-pulse-green">
               SIM! QUERO ACESSAR AGORA
             </a>
             <p className="mt-6 text-red-500 font-bold text-[0.85rem] md:text-[0.95rem]">⚠️ Aviso: Vagas limitadas para este lote promocional.</p>
@@ -139,10 +139,10 @@ export default function PaginaGenericaDeVendas({ params }: { params: Promise<{ s
           </section>
 
           {/* FAQ DINÂMICO */}
-          {produto.faqs.length > 0 && (
+          {funil.salespage.faqs.length > 0 && (
             <div className="mb-12">
               <h2 className="text-sky-500 mb-5 text-[1.5rem] md:text-[1.8rem] font-bold text-center mt-12">Dúvidas Frequentes</h2>
-              <FaqAccordion faqs={produto.faqs} />
+              <FaqAccordion faqs={funil.salespage.faqs} />
             </div>
           )}
 
@@ -155,7 +155,7 @@ export default function PaginaGenericaDeVendas({ params }: { params: Promise<{ s
       {conteudoLiberado && (
         <div className="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-md border-t border-slate-200 p-4 z-50 md:hidden animate-in slide-in-from-bottom-full duration-300 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
           <a 
-            href={produto.checkoutUrl} 
+            href={funil.salespage.checkoutUrl} 
             className="block w-full py-4 bg-emerald-500 text-white text-center text-[1.1rem] font-black uppercase rounded-lg shadow-lg"
           >
             ACESSAR PROTOCOLO
@@ -166,8 +166,8 @@ export default function PaginaGenericaDeVendas({ params }: { params: Promise<{ s
       {/* RASTREAMENTO DINÂMICO ISOLADO (META + GOOGLE) */}
       {/* Puxa os IDs exatos deste produto para separar a inteligência das campanhas */}
       <Tracking
-        pixelMetaId={produto.pixelMetaId} 
-        googleAnalyticsId={produto.googleAnalyticsId} 
+        pixelMetaId={funil.salespage.pixelMetaId} 
+        googleAnalyticsId={funil.salespage.googleAnalyticsId} 
       />
 
     </main>

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { produtos } from '@/data/produtos';
+import { funis } from '@/data/funis';
 
 export const metadata = {
   title: 'Nossos Protocolos | Stack Saúde',
@@ -8,7 +8,7 @@ export const metadata = {
 
 export default function ProtocolosPage() {
   // Puxando TODOS os produtos do seu banco (sem limitar a 3 como na Home)
-  const todosOsProdutos = produtos;
+  const todosOsFunis = funis;
 
   return (
     <div className="bg-slate-50 text-slate-900 font-sans pb-24">
@@ -53,9 +53,9 @@ export default function ProtocolosPage() {
 
         {/* A Grade (Grid) que vai listar tudo */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {todosOsProdutos.map((produto) => (
+          {todosOsFunis.map((funil) => (
             <div 
-              key={produto.slug} 
+              key={funil.slug} 
               className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-2 hover:border-sky-300 transition-all duration-300 flex flex-col justify-between group"
             >
               <div>
@@ -67,17 +67,17 @@ export default function ProtocolosPage() {
                 </div>
 
                 <h2 className="text-2xl font-black text-slate-900 group-hover:text-sky-600 transition-colors leading-tight">
-                  {produto.oferta.nomeProduto}
+                  {funil.produto}
                 </h2>
                 
                 <p className="mt-4 text-slate-600 leading-relaxed line-clamp-4">
-                  {produto.subheadline.replace('...', '')}
+                  {funil.descricao}
                 </p>
               </div>
               
               {/* Link direto para a VSL do produto específico */}
               <Link 
-                href={`/${produto.slug}`} 
+                href={`/${funil.slug}`}
                 className="mt-8 px-6 py-4 bg-slate-50 text-slate-900 border border-slate-200 text-center font-black text-sm uppercase rounded-xl group-hover:bg-sky-500 group-hover:border-sky-500 group-hover:text-white transition-all flex justify-center items-center gap-2 shadow-sm"
               >
                 Assistir ao Vídeo <span className="text-lg transition-transform group-hover:translate-x-1">&rarr;</span>
@@ -87,7 +87,7 @@ export default function ProtocolosPage() {
         </div>
 
         {/* Fallback caso o banco de dados de produtos esteja vazio */}
-        {todosOsProdutos.length === 0 && (
+        {todosOsFunis.length === 0 && (
           <div className="text-center py-20 bg-white border-2 border-dashed border-slate-300 rounded-2xl">
             <h3 className="text-2xl font-black text-slate-900 mb-2">Catálogo em atualização</h3>
             <p className="text-slate-500 text-lg">Nossa equipe científica está preparando novos protocolos. Volte em breve.</p>

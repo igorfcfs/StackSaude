@@ -3,61 +3,110 @@
 import { useState, useEffect, use, Suspense, useRef } from 'react';
 import Link from 'next/link';
 import { notFound, useSearchParams, useRouter } from 'next/navigation';
-import { produtos } from '@/data/produtos';
+
+import { funis } from '@/data/funis';
 import SmartVsl from '@/components/SmartVsl';
 
-function UpsellConteudo({ slug }: { slug: string }) {
+// ==========================================
+// MÁQUINA DE LEITURA DE SLUGS (Agora com cálculo de Etapas)
+// ==========================================
+function extrairOfertaDoSlug(slugCompleto: string) {
+  const partes = slugCompleto.split('-');
+  const etapaAbreviada = partes.pop(); 
+  const slugBase = partes.join('-'); 
+
+  if (!etapaAbreviada || !slugBase) return { oferta: null, suporte: null, totalEtapas: 0, numeroEtapa: 0 };
+
+  const funilPai = funis.find(f => f.slug === slugBase);
+  if (!funilPai) return { oferta: null, suporte: null, totalEtapas: 0, numeroEtapa: 0 };
+
+  const tipo = etapaAbreviada.startsWith('u') ? 'upsell' : etapaAbreviada.startsWith('d') ? 'downsell' : null;
+  const numero = etapaAbreviada.slice(1); 
+
+  if (!tipo || !numero) return { oferta: null, suporte: null, totalEtapas: 0, numeroEtapa: 0 };
+
+  const chaveDaEtapa = `${tipo}${numero}`; 
+  
+  // Calcula o total de Upsells dinamicamente vasculhando o funil
+  let totalUpsells = 0;
+  while (funilPai[`upsell${totalUpsells + 1}` as keyof typeof funilPai]) {
+    totalUpsells++;
+  }
+  
+  // Total de etapas = compra principal (1) + quantidade de upsells
+  const totalEtapas = totalUpsells + 1;
+  const numeroEtapa = parseInt(numero, 10);
+
+  return {
+    oferta: funilPai[chaveDaEtapa as keyof typeof funilPai] as any,
+    suporte: funilPai.suporteUrl,
+    totalEtapas,
+    numeroEtapa
+  };
+}
+
+function OfertaConteudo({ slug }: { slug: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const produto = produtos.find((p) => p.slug === slug);
+  
+  // Recebe também a matemática das etapas
+  const { oferta: ofertaAtual, suporte: linkSuporte, totalEtapas, numeroEtapa } = extrairOfertaDoSlug(slug);
 
-  if (!produto || !produto.upsell) {
+  if (!ofertaAtual) {
     notFound();
   }
 
-  const { upsell } = produto;
-
   const parametrosAtuais = searchParams.toString();
-  const linkSimFinal = parametrosAtuais ? `${upsell.linkCheckout}?${parametrosAtuais}` : upsell.linkCheckout;
-  const linkNaoFinal = parametrosAtuais ? `${upsell.rotaDownsell}/${slug}?${parametrosAtuais}` : `${upsell.rotaDownsell}/${slug}`;
+  
+  const linkSimBase = ofertaAtual.checkoutUrl || '';
+  const linkSimFinal = parametrosAtuais ? `${linkSimBase}?${parametrosAtuais}` : linkSimBase;
+  
+  const linkNaoBase = ofertaAtual.downsellUrl || '';
+  const linkNaoFinal = parametrosAtuais ? `${linkNaoBase}?${parametrosAtuais}` : linkNaoBase;
 
   const [mostrarOferta, setMostrarOferta] = useState(false);
   const [ofertaExpirada, setOfertaExpirada] = useState(false);
-  const [tempoRestante, setTempoRestante] = useState(upsell.tempoTimer * 60);
+  
+  const tempoEmMinutos = ofertaAtual.tempoTimer || 15;
+  const [tempoRestante, setTempoRestante] = useState(tempoEmMinutos * 60);
 
-  // ==========================================
-  // O "CRACHÁ VIP" (Permite sair sem alerta)
-  // ==========================================
   const permitirSaidaRef = useRef(false);
 
   // ==========================================
-  // 1. ARMADILHA DO BOTÃO VOLTAR (Re-armável)
+  // IDENTIFICADORES DE ETAPA
+  // ==========================================
+  const isDownsell = slug.includes('-d');
+  const isPrimeiroUpsell = slug.endsWith('-u1'); 
+
+  // Dinamiza o Topo com a matemática perfeita e tira a barra de progresso visual
+  const textoTopo = isDownsell 
+    ? '⚠️ ÚLTIMA CHANCE ANTES DO ACESSO' 
+    : `✅ Etapa ${numeroEtapa} de ${totalEtapas} Concluída`;
+
+  // ==========================================
+  // 1. ARMADILHA DO BOTÃO VOLTAR (Apenas para o U1)
   // ==========================================
   useEffect(() => {
-    // 1. Injeta um estado falso no histórico assim que ele entra
+    if (!isPrimeiroUpsell) return;
+
     window.history.pushState({ preso: true }, '', window.location.href);
 
     const bloquearVoltar = (e: PopStateEvent) => {
-      // Se ele comprou ou recusou oficialmente, deixa ele ir
       if (permitirSaidaRef.current) return;
-
-      // 2. RE-ARMA A ARMADILHA: Empurra a página de volta pro histórico
       window.history.pushState({ preso: true }, '', window.location.href);
-      
-      // 3. Dá o susto
       alert("Atenção: Seu pedido anterior já foi processado. Por favor, conclua esta etapa para não travar sua entrega.");
     };
 
     window.addEventListener('popstate', bloquearVoltar);
     return () => window.removeEventListener('popstate', bloquearVoltar);
-  }, []);
+  }, [isPrimeiroUpsell]);
 
   // ==========================================
   // 2. ALERTA DE RECARREGAMENTO (Anti-F5)
   // ==========================================
   useEffect(() => {
     const bloquearRefresh = (e: BeforeUnloadEvent) => {
-      if (permitirSaidaRef.current) return; // Passe livre
+      if (permitirSaidaRef.current) return; 
       e.preventDefault();
       e.returnValue = ''; 
     };
@@ -71,11 +120,11 @@ function UpsellConteudo({ slug }: { slug: string }) {
   useEffect(() => {
     if (!mostrarOferta) return;
 
-    const storageKey = `upsell_deadline_${slug}`;
+    const storageKey = `oferta_deadline_${slug}`;
     let deadlineFinal = localStorage.getItem(storageKey);
 
     if (!deadlineFinal) {
-      const tempoEmMilissegundos = upsell.tempoTimer * 60 * 1000;
+      const tempoEmMilissegundos = tempoEmMinutos * 60 * 1000;
       deadlineFinal = (Date.now() + tempoEmMilissegundos).toString();
       localStorage.setItem(storageKey, deadlineFinal);
     }
@@ -94,23 +143,20 @@ function UpsellConteudo({ slug }: { slug: string }) {
     }, 1000);
 
     return () => clearInterval(tempo);
-  }, [mostrarOferta, slug, upsell.tempoTimer]);
+  }, [mostrarOferta, slug, tempoEmMinutos]);
 
   const minutosExibicao = Math.floor(tempoRestante / 60);
   const segundosExibicao = tempoRestante % 60;
 
   // ==========================================
-  // CONTROLES DE BOTÕES (Garantem a ordem de execução)
+  // CONTROLES DE BOTÕES
   // ==========================================
-  
-  // O botão verde redireciona sem disparar o alerta de F5/Sair
   const handleCompra = (e: React.MouseEvent) => {
     e.preventDefault();
-    permitirSaidaRef.current = true; // Desativa as armadilhas
-    window.location.href = linkSimFinal; // Envia pro gateway de pagamento
+    permitirSaidaRef.current = true; 
+    window.location.href = linkSimFinal; 
   };
 
-  // O botão cinza dá a última chance de ficar
   const handleRecusa = (e: React.MouseEvent) => {
     e.preventDefault();
     const confirmarSaida = window.confirm(
@@ -118,8 +164,8 @@ function UpsellConteudo({ slug }: { slug: string }) {
     );
 
     if (confirmarSaida) {
-      permitirSaidaRef.current = true; // Desativa as armadilhas
-      router.push(linkNaoFinal); // Envia pro Downsell
+      permitirSaidaRef.current = true; 
+      router.push(linkNaoFinal); 
     }
   };
 
@@ -133,24 +179,25 @@ function UpsellConteudo({ slug }: { slug: string }) {
         
         <h1 
           className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight"
-          dangerouslySetInnerHTML={{ __html: upsell.headline }}
+          dangerouslySetInnerHTML={{ __html: ofertaAtual.headline }}
         />
 
         <p className="mt-6 text-lg md:text-xl text-slate-600 font-medium max-w-3xl leading-relaxed mb-10">
-          {upsell.subheadline}
+          {ofertaAtual.subheadline}
         </p>
 
         <div className="w-full max-w-3xl mx-auto flex flex-col items-center">
-          <div className="w-full bg-sky-600 text-white text-center py-2 md:py-3 text-xs md:text-sm font-black uppercase tracking-widest rounded-t-xl shadow-md border border-b-0 border-sky-700">
-            ✅ Etapa 1 de 2 Concluída
+          {/* TOPO DINÂMICO DE ETAPAS */}
+          <div className={`w-full text-white text-center py-2 md:py-3 text-xs md:text-sm font-black uppercase tracking-widest rounded-t-xl shadow-md border border-b-0 ${isDownsell ? 'bg-amber-600 border-amber-700' : 'bg-sky-600 border-sky-700'}`}>
+            {textoTopo}
           </div>
-          <div className="w-full bg-slate-200 h-2 md:h-3 border-x border-slate-300">
-            <div className="bg-emerald-500 h-full w-[50%] shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>
-          </div>
-          <div className="w-full -mt-1 relative z-10">
+          
+          {/* BARRA DE PROGRESSO REMOVIDA AQUI */}
+
+          <div className="w-full relative z-10">
             <SmartVsl 
-              videoId={upsell.videoId} 
-              tempoDelaySegundos={upsell.delaySegundos}
+              videoId={ofertaAtual.videoId} 
+              tempoDelaySegundos={ofertaAtual.delaySegundos || 10}
               onLiberarConteudo={() => setMostrarOferta(true)} 
             />
           </div>
@@ -188,26 +235,24 @@ function UpsellConteudo({ slug }: { slug: string }) {
                       Preço Normal: <span className="line-through decoration-red-500 decoration-2">R$ 197,00</span>
                     </p>
                     <p className="text-2xl md:text-3xl font-black text-slate-900">
-                      {upsell.subtextoBotaoSim}
+                      {ofertaAtual.subtextoBotaoSim}
                     </p>
                   </div>
 
-                  {/* ADICIONADO: onClick com handleCompra */}
                   <button 
                     onClick={handleCompra}
                     className="w-full py-5 px-6 bg-emerald-500 hover:bg-emerald-600 text-white text-center rounded-xl shadow-[0_8px_30px_rgb(16,185,129,0.3)] hover:shadow-[0_8px_30px_rgb(16,185,129,0.5)] transition-all hover:-translate-y-1 group cursor-pointer"
                   >
                     <span className="block text-2xl font-black uppercase tracking-wide">
-                      {upsell.textoBotaoSim}
+                      {ofertaAtual.textoBotaoSim}
                     </span>
                   </button>
 
-                  {/* ADICIONADO: onClick com handleRecusa */}
                   <button 
                     onClick={handleRecusa}
                     className="w-full py-4 px-6 border-2 border-slate-300 text-slate-500 hover:text-slate-700 hover:border-slate-400 hover:bg-slate-50 transition-all font-bold text-lg md:text-xl rounded-xl text-center mt-2 cursor-pointer"
                   >
-                    {upsell.textoBotaoNao}
+                    {ofertaAtual.textoBotaoNao}
                   </button>
                 </>
               ) : (
@@ -235,7 +280,7 @@ function UpsellConteudo({ slug }: { slug: string }) {
                 Ficou com alguma dúvida sobre o seu pedido?
               </p>
               <a 
-                href={upsell.linkSuporte} 
+                href={linkSuporte || ''} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-700 font-bold rounded-full hover:border-emerald-500 hover:text-emerald-600 transition-colors shadow-sm"
@@ -252,13 +297,13 @@ function UpsellConteudo({ slug }: { slug: string }) {
   );
 }
 
-export default function UpsellDinamicoPage({ params }: { params: Promise<{ slug: string }> }) {
+export default function OfertaDinamicaPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans flex flex-col items-center pb-20 selection:bg-red-100 selection:text-red-900">
       <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center font-bold text-slate-400">Carregando sua oferta segura...</div>}>
-        <UpsellConteudo slug={slug} />
+        <OfertaConteudo slug={slug} />
       </Suspense>
     </div>
   );

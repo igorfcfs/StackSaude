@@ -1,9 +1,9 @@
 import Link from 'next/link';
-import { produtos } from '@/data/produtos';
+import { funis } from '@/data/funis';
 
 export default function Home() {
-  // Garante que apenas os 3 primeiros produtos cadastrados apareçam na vitrine
-  const produtosDestaque = produtos.slice(0, 3);
+  // Garante que apenas os 3 primeiros produtos (funis) cadastrados apareçam na vitrine
+  const funisDestaque = funis.slice(0, 3);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans scroll-smooth selection:bg-sky-100 selection:text-sky-900">
@@ -95,9 +95,9 @@ export default function Home() {
           </div>
           
           <div className="grid md:grid-cols-3 gap-8">
-            {produtosDestaque.map((produto) => (
+            {funisDestaque.map((funil) => (
               <div 
-                key={produto.slug} 
+                key={funil.slug} 
                 className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-2xl hover:-translate-y-2 hover:border-sky-300 transition-all duration-300 flex flex-col justify-between group"
               >
                 <div>
@@ -107,16 +107,16 @@ export default function Home() {
                   </span>
 
                   <h3 className="text-2xl font-black text-slate-900 group-hover:text-sky-600 transition-colors leading-tight">
-                    {produto.oferta.nomeProduto}
+                    {funil.produto}
                   </h3>
                   
                   <p className="mt-5 text-slate-600 leading-relaxed line-clamp-4">
-                    {produto.subheadline.replace('...', '')}
+                    {funil.descricao}
                   </p>
                 </div>
                 
                 <Link 
-                  href={`/${produto.slug}`} // Aponta para a VSL direto ao invés da PRESELL
+                  href={`/${funil.slug}`} // Aponta para a VSL direto ao invés da PRESELL
                   className="mt-10 px-6 py-4 bg-slate-900 text-white text-center font-black text-sm uppercase rounded-xl group-hover:bg-emerald-500 transition-colors shadow-md flex justify-center items-center gap-2"
                 >
                   Descobrir o Método <span className="text-lg transition-transform group-hover:translate-x-1">&rarr;</span>
@@ -125,7 +125,7 @@ export default function Home() {
             ))}
           </div>
           
-          {produtosDestaque.length === 0 && (
+          {funisDestaque.length === 0 && (
             <div className="text-center py-16 bg-white border-2 border-dashed border-slate-300 rounded-2xl">
               <p className="text-slate-500 font-bold text-lg">Nenhum protocolo disponível no momento.</p>
               <p className="text-slate-400 text-sm mt-2">Nossa equipe científica está preparando novidades.</p>
