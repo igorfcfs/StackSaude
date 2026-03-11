@@ -97,7 +97,7 @@ function ObrigadoConteudo({ slug }: { slug: string }) {
         </p>
         
         <a 
-          href={funilAtual.linkSuporte || '#'} 
+          href={funilAtual.suporteUrl || '#'} 
           target="_blank" 
           rel="noopener noreferrer"
           className="inline-flex items-center gap-3 px-8 py-4 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all hover:-translate-y-1 shadow-lg"

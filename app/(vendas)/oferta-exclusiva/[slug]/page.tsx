@@ -1,124 +1,122 @@
 "use client";
 
 import { useState, useEffect, use, Suspense, useRef } from 'react';
-import Link from 'next/link';
 import { notFound, useSearchParams, useRouter } from 'next/navigation';
-
-import { funis } from '@/data/funis';
 import SmartVsl from '@/components/SmartVsl';
 
+const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
+const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
+const apiVersion = '2024-03-10';
+
 // ==========================================
-// MÁQUINA DE LEITURA DE SLUGS (Agora com cálculo de Etapas)
+// FUNÇÃO DE BUSCA NO SANITY (O CÉREBRO INFINITO)
 // ==========================================
-function extrairOfertaDoSlug(slugCompleto: string) {
-  const partes = slugCompleto.split('-');
-  const etapaAbreviada = partes.pop(); 
-  const slugBase = partes.join('-'); 
+async function getLtvDoSanity(slugLtv: string) {
+  // 1. Buscamos o LTV em si para ter os textos da página atual
+  // 2. Buscamos o Funil que "hospeda" esse LTV na sua esteira (para calcular a etapa)
+  const query = encodeURIComponent(`
+    {
+      "ofertaAtual": *[_type == "ltv" && configuracoesInternas.slug.current == "${slugLtv}"][0] {
+        configuracoesInternas,
+        headline,
+        subheadlineHook,
+        video,
+        botoesAcao,
+        elementosConfianca
+      },
+      "funilMae": *[_type == "funilConfig" && "${slugLtv}" in esteiraOfertas[]->configuracoesInternas.slug.current][0] {
+        contatos,
+        "esteiraSlugs": esteiraOfertas[]->configuracoesInternas.slug.current
+      }
+    }
+  `);
 
-  if (!etapaAbreviada || !slugBase) return { oferta: null, suporte: null, totalEtapas: 0, numeroEtapa: 0 };
+  const url = `https://${projectId}.api.sanity.io/v${apiVersion}/data/query/${dataset}?query=${query}`;
 
-  const funilPai = funis.find(f => f.slug === slugBase);
-  if (!funilPai) return { oferta: null, suporte: null, totalEtapas: 0, numeroEtapa: 0 };
-
-  const tipo = etapaAbreviada.startsWith('u') ? 'upsell' : etapaAbreviada.startsWith('d') ? 'downsell' : null;
-  const numero = etapaAbreviada.slice(1); 
-
-  if (!tipo || !numero) return { oferta: null, suporte: null, totalEtapas: 0, numeroEtapa: 0 };
-
-  const chaveDaEtapa = `${tipo}${numero}`; 
-  
-  // Calcula o total de Upsells dinamicamente vasculhando o funil
-  let totalUpsells = 0;
-  while (funilPai[`upsell${totalUpsells + 1}` as keyof typeof funilPai]) {
-    totalUpsells++;
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.result;
+  } catch (error) {
+    console.error("Erro ao buscar LTV:", error);
+    return null;
   }
-  
-  // Total de etapas = compra principal (1) + quantidade de upsells
-  const totalEtapas = totalUpsells + 1;
-  const numeroEtapa = parseInt(numero, 10);
-
-  return {
-    oferta: funilPai[chaveDaEtapa as keyof typeof funilPai] as any,
-    suporte: funilPai.suporteUrl,
-    totalEtapas,
-    numeroEtapa
-  };
 }
 
 function OfertaConteudo({ slug }: { slug: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  
-  // Recebe também a matemática das etapas
-  const { oferta: ofertaAtual, suporte: linkSuporte, totalEtapas, numeroEtapa } = extrairOfertaDoSlug(slug);
 
-  if (!ofertaAtual) {
-    notFound();
-  }
+  const [dadosDoSanity, setDadosDoSanity] = useState<any>(null);
+  const [carregando, setCarregando] = useState(true);
 
-  const parametrosAtuais = searchParams.toString();
-  
-  const linkSimBase = ofertaAtual.checkoutUrl || '';
-  const linkSimFinal = parametrosAtuais ? `${linkSimBase}?${parametrosAtuais}` : linkSimBase;
-  
-  const linkNaoBase = ofertaAtual.downsellUrl || '';
-  const linkNaoFinal = parametrosAtuais ? `${linkNaoBase}?${parametrosAtuais}` : linkNaoBase;
+  // ==========================================
+  // BUSCA OS DADOS
+  // ==========================================
+  useEffect(() => {
+    async function fetchData() {
+      const dados = await getLtvDoSanity(slug);
+      setDadosDoSanity(dados);
+      setCarregando(false);
+    }
+    fetchData();
+  }, [slug]);
 
   const [mostrarOferta, setMostrarOferta] = useState(false);
   const [ofertaExpirada, setOfertaExpirada] = useState(false);
-  
-  const tempoEmMinutos = ofertaAtual.tempoTimer || 15;
-  const [tempoRestante, setTempoRestante] = useState(tempoEmMinutos * 60);
+  const [tempoRestante, setTempoRestante] = useState(0);
 
   const permitirSaidaRef = useRef(false);
 
   // ==========================================
-  // IDENTIFICADORES DE ETAPA
-  // ==========================================
-  const isDownsell = slug.includes('-d');
-  const isPrimeiroUpsell = slug.endsWith('-u1'); 
-
-  // Dinamiza o Topo com a matemática perfeita e tira a barra de progresso visual
-  const textoTopo = isDownsell 
-    ? '⚠️ ÚLTIMA CHANCE ANTES DO ACESSO' 
-    : `✅ Etapa ${numeroEtapa} de ${totalEtapas} Concluída`;
-
-  // ==========================================
-  // 1. ARMADILHA DO BOTÃO VOLTAR (Apenas para o U1)
+  // MATEMÁTICA DA ESTEIRA E ANTI-FUGA
   // ==========================================
   useEffect(() => {
-    if (!isPrimeiroUpsell) return;
+    if (carregando || !dadosDoSanity || !dadosDoSanity.funilMae) return;
 
-    window.history.pushState({ preso: true }, '', window.location.href);
+    // A genialidade: A esteira do Sanity dita a ordem. 
+    // O primeiro item (index 0) é SEMPRE o primeiro Upsell pós-venda.
+    const indiceNaEsteira = dadosDoSanity.funilMae.esteiraSlugs?.indexOf(slug);
+    const isPrimeiroUpsell = indiceNaEsteira === 0;
 
-    const bloquearVoltar = (e: PopStateEvent) => {
-      if (permitirSaidaRef.current) return;
+    // 1. ARMADILHA DO BOTÃO VOLTAR (Apenas se for o primeiro da lista)
+    if (isPrimeiroUpsell) {
       window.history.pushState({ preso: true }, '', window.location.href);
-      alert("Atenção: Seu pedido anterior já foi processado. Por favor, conclua esta etapa para não travar sua entrega.");
-    };
 
-    window.addEventListener('popstate', bloquearVoltar);
-    return () => window.removeEventListener('popstate', bloquearVoltar);
-  }, [isPrimeiroUpsell]);
+      const bloquearVoltar = (e: PopStateEvent) => {
+        if (permitirSaidaRef.current) return;
+        window.history.pushState({ preso: true }, '', window.location.href);
+        alert("Atenção: Seu pedido anterior já foi processado. Por favor, conclua esta etapa para não travar sua entrega.");
+      };
 
-  // ==========================================
-  // 2. ALERTA DE RECARREGAMENTO (Anti-F5)
-  // ==========================================
-  useEffect(() => {
-    const bloquearRefresh = (e: BeforeUnloadEvent) => {
-      if (permitirSaidaRef.current) return; 
-      e.preventDefault();
-      e.returnValue = ''; 
-    };
-    window.addEventListener('beforeunload', bloquearRefresh);
-    return () => window.removeEventListener('beforeunload', bloquearRefresh);
-  }, []);
+      window.addEventListener('popstate', bloquearVoltar);
+      
+      // 2. ALERTA DE RECARREGAMENTO (Anti-F5)
+      const bloquearRefresh = (e: BeforeUnloadEvent) => {
+        if (permitirSaidaRef.current) return; 
+        e.preventDefault();
+        e.returnValue = ''; 
+      };
+      window.addEventListener('beforeunload', bloquearRefresh);
+
+      return () => {
+        window.removeEventListener('popstate', bloquearVoltar);
+        window.removeEventListener('beforeunload', bloquearRefresh);
+      };
+    }
+  }, [carregando, dadosDoSanity, slug]);
+
 
   // ==========================================
   // 3. LÓGICA DE ESCASSEZ
   // ==========================================
   useEffect(() => {
-    if (!mostrarOferta) return;
+    if (!mostrarOferta || !dadosDoSanity || !dadosDoSanity.ofertaAtual) return;
+
+    const tempoEmMinutos = dadosDoSanity.ofertaAtual.elementosConfianca?.tempoTimer || 15;
+    
+    setTempoRestante(tempoEmMinutos * 60);
 
     const storageKey = `oferta_deadline_${slug}`;
     let deadlineFinal = localStorage.getItem(storageKey);
@@ -143,7 +141,44 @@ function OfertaConteudo({ slug }: { slug: string }) {
     }, 1000);
 
     return () => clearInterval(tempo);
-  }, [mostrarOferta, slug, tempoEmMinutos]);
+  }, [mostrarOferta, slug, dadosDoSanity]);
+
+
+  if (carregando) {
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center font-bold text-slate-400">Carregando sua oferta segura...</div>;
+  }
+
+  if (!dadosDoSanity || !dadosDoSanity.ofertaAtual) {
+    return notFound();
+  }
+
+  const { ofertaAtual, funilMae } = dadosDoSanity;
+  const isDownsell = ofertaAtual.configuracoesInternas?.tipoOferta?.includes('Downsell');
+
+  // ==========================================
+  // CÁLCULO DE TOPO (Dinâmico para listas infinitas)
+  // ==========================================
+  let textoTopo = '';
+  if (isDownsell) {
+    textoTopo = '⚠️ ÚLTIMA CHANCE ANTES DO ACESSO';
+  } else {
+    // Se for Upsell, calculamos a posição dele na esteira
+    const posicao = funilMae?.esteiraSlugs?.indexOf(slug) ?? 0;
+    // O total de etapas é o Produto Principal (1) + Quantidade de ofertas na esteira
+    const totalEtapas = (funilMae?.esteiraSlugs?.length || 0) + 1;
+    // A etapa atual é o Produto (1) + 1 (pois arrays começam em 0) + a posição dele
+    const etapaAtual = posicao + 2; 
+
+    textoTopo = `✅ Etapa ${etapaAtual} de ${totalEtapas} Concluída`;
+  }
+
+  const parametrosAtuais = searchParams.toString();
+  
+  const linkSimBase = ofertaAtual.botoesAcao?.ofertaSim?.checkoutUrl || '';
+  const linkSimFinal = parametrosAtuais ? `${linkSimBase}?${parametrosAtuais}` : linkSimBase;
+  
+  const linkNaoBase = ofertaAtual.botoesAcao?.ofertaNao?.rotaDownsellUrl || '';
+  const linkNaoFinal = parametrosAtuais ? `${linkNaoBase}?${parametrosAtuais}` : linkNaoBase;
 
   const minutosExibicao = Math.floor(tempoRestante / 60);
   const segundosExibicao = tempoRestante % 60;
@@ -165,9 +200,15 @@ function OfertaConteudo({ slug }: { slug: string }) {
 
     if (confirmarSaida) {
       permitirSaidaRef.current = true; 
-      router.push(linkNaoFinal); 
+      // Corrige a URL para garantir que não mande pra rota errada
+      const rotaFormatada = linkNaoFinal.startsWith('/') ? linkNaoFinal : `/${linkNaoFinal}`;
+      router.push(rotaFormatada); 
     }
   };
+
+  // Prepara o link do Whatsapp
+  const foneSuporte = funilMae?.contatos?.telefoneSuporte;
+  const linkSuporte = foneSuporte ? `https://wa.me/${foneSuporte.replace(/\D/g, '')}` : null;
 
   return (
     <>
@@ -179,11 +220,11 @@ function OfertaConteudo({ slug }: { slug: string }) {
         
         <h1 
           className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight"
-          dangerouslySetInnerHTML={{ __html: ofertaAtual.headline }}
+          dangerouslySetInnerHTML={{ __html: ofertaAtual.headline || '' }}
         />
 
         <p className="mt-6 text-lg md:text-xl text-slate-600 font-medium max-w-3xl leading-relaxed mb-10">
-          {ofertaAtual.subheadline}
+          {ofertaAtual.subheadlineHook?.textoSubheadline}
         </p>
 
         <div className="w-full max-w-3xl mx-auto flex flex-col items-center">
@@ -191,15 +232,15 @@ function OfertaConteudo({ slug }: { slug: string }) {
           <div className={`w-full text-white text-center py-2 md:py-3 text-xs md:text-sm font-black uppercase tracking-widest rounded-t-xl shadow-md border border-b-0 ${isDownsell ? 'bg-amber-600 border-amber-700' : 'bg-sky-600 border-sky-700'}`}>
             {textoTopo}
           </div>
-          
-          {/* BARRA DE PROGRESSO REMOVIDA AQUI */}
 
           <div className="w-full relative z-10">
-            <SmartVsl 
-              videoId={ofertaAtual.videoId} 
-              tempoDelaySegundos={ofertaAtual.delaySegundos || 10}
-              onLiberarConteudo={() => setMostrarOferta(true)} 
-            />
+            {ofertaAtual.video && (
+              <SmartVsl 
+                videoId={ofertaAtual.video.videoId} 
+                tempoDelaySegundos={ofertaAtual.video.delaySegundos || 10}
+                onLiberarConteudo={() => setMostrarOferta(true)} 
+              />
+            )}
           </div>
         </div>
 
@@ -232,10 +273,7 @@ function OfertaConteudo({ slug }: { slug: string }) {
                 <>
                   <div className="w-full flex flex-col items-center mb-4 text-center">
                     <p className="text-slate-500 font-bold text-lg md:text-xl mb-1">
-                      Preço Normal: <span className="line-through decoration-red-500 decoration-2">R$ 197,00</span>
-                    </p>
-                    <p className="text-2xl md:text-3xl font-black text-slate-900">
-                      {ofertaAtual.subtextoBotaoSim}
+                      {ofertaAtual.botoesAcao?.ofertaSim?.subtextoBotaoSim}
                     </p>
                   </div>
 
@@ -244,7 +282,7 @@ function OfertaConteudo({ slug }: { slug: string }) {
                     className="w-full py-5 px-6 bg-emerald-500 hover:bg-emerald-600 text-white text-center rounded-xl shadow-[0_8px_30px_rgb(16,185,129,0.3)] hover:shadow-[0_8px_30px_rgb(16,185,129,0.5)] transition-all hover:-translate-y-1 group cursor-pointer"
                   >
                     <span className="block text-2xl font-black uppercase tracking-wide">
-                      {ofertaAtual.textoBotaoSim}
+                      {ofertaAtual.botoesAcao?.ofertaSim?.textoBotaoSim || 'ADICIONAR AO MEU PEDIDO'}
                     </span>
                   </button>
 
@@ -252,7 +290,7 @@ function OfertaConteudo({ slug }: { slug: string }) {
                     onClick={handleRecusa}
                     className="w-full py-4 px-6 border-2 border-slate-300 text-slate-500 hover:text-slate-700 hover:border-slate-400 hover:bg-slate-50 transition-all font-bold text-lg md:text-xl rounded-xl text-center mt-2 cursor-pointer"
                   >
-                    {ofertaAtual.textoBotaoNao}
+                    {ofertaAtual.botoesAcao?.ofertaNao?.textoBotaoNao || 'Não, obrigado.'}
                   </button>
                 </>
               ) : (
@@ -275,19 +313,22 @@ function OfertaConteudo({ slug }: { slug: string }) {
               )}
             </div>
 
-            <div className="mt-16 pt-8 border-t border-slate-200 w-full flex flex-col items-center">
-              <p className="text-sm text-slate-500 mb-3">
-                Ficou com alguma dúvida sobre o seu pedido?
-              </p>
-              <a 
-                href={linkSuporte || ''} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-700 font-bold rounded-full hover:border-emerald-500 hover:text-emerald-600 transition-colors shadow-sm"
-              >
-                <span className="text-xl text-emerald-500">💬</span> Falar com o Suporte no WhatsApp
-              </a>
-            </div>
+            {/* BOTÃO DE SUPORTE INJETADO PELO MAESTRO */}
+            {linkSuporte && (
+              <div className="mt-16 pt-8 border-t border-slate-200 w-full flex flex-col items-center">
+                <p className="text-sm text-slate-500 mb-3">
+                  Ficou com alguma dúvida sobre o seu pedido?
+                </p>
+                <a 
+                  href={linkSuporte} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-700 font-bold rounded-full hover:border-emerald-500 hover:text-emerald-600 transition-colors shadow-sm"
+                >
+                  <span className="text-xl text-emerald-500">💬</span> Falar com o Suporte no WhatsApp
+                </a>
+              </div>
+            )}
 
           </div>
         )}
