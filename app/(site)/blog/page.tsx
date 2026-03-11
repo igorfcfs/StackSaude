@@ -1,4 +1,9 @@
 import Link from 'next/link';
+import Image from 'next/image';
+
+const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
+const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
+const apiVersion = '2024-03-10';
 
 export const metadata = {
   title: 'Blog & Inteligência | Stack Saúde',
@@ -6,37 +11,62 @@ export const metadata = {
 };
 
 // ==========================================
-// BANCO DE DADOS SIMULADO (MOCK) DE ARTIGOS
-// No futuro, você pode mover isso para um arquivo src/data/posts.ts
+// FUNÇÃO DE BUSCA
 // ==========================================
-const artigos = [
-  {
-    slug: 'dopamina-barata-destruindo-foco',
-    titulo: 'Como a "Dopamina Barata" está destruindo seu foco (e como resetar)',
-    resumo: 'Entenda a biologia do vício em redes sociais e descubra o protocolo de 7 dias para restaurar seus receptores de dopamina e recuperar a concentração profunda.',
-    categoria: 'Neurociência',
-    data: '09 Mar 2026',
-    tempoLeitura: '5 min de leitura',
-  },
-  {
-    slug: 'mitos-sobre-o-sono-rem',
-    titulo: 'Os 3 mitos sobre o sono que estão envelhecendo seu cérebro',
-    resumo: 'Dormir 8 horas nem sempre é o suficiente. Descubra como a arquitetura do sono funciona e quais suplementos realmente induzem o sono REM reparador.',
-    categoria: 'Biohacking',
-    data: '05 Mar 2026',
-    tempoLeitura: '7 min de leitura',
-  },
-  {
-    slug: 'nutricao-para-alta-performance',
-    titulo: 'A dieta do Vale do Silício: O que os executivos comem para focar?',
-    resumo: 'Analisamos os padrões alimentares dos CEOs de alta performance. O segredo não está em comer menos, mas em evitar os picos de insulina no meio do dia.',
-    categoria: 'Nutrição',
-    data: '28 Fev 2026',
-    tempoLeitura: '4 min de leitura',
-  }
-];
+async function getArtigosDoSanity() {
+  const query = encodeURIComponent(`
+    *[_type == "artigo"] | order(dataPublicacao desc) {
+      _id,
+      titulo,
+      "slug": slug.current,
+      categoria,
+      tempoLeitura,
+      resumo,
+      "capaUrl": capa.asset->url,
+      dataPublicacao
+    }
+  `);
 
-export default function BlogPage() {
+  const url = `https://${projectId}.api.sanity.io/v${apiVersion}/data/query/${dataset}?query=${query}`;
+
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.result || [];
+  } catch (error) {
+    return [];
+  }
+}
+
+// ==========================================
+// PÁGINA PRINCIPAL COM PARÂMETROS DE URL
+// ==========================================
+export default async function BlogPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ categoria?: string }> | { categoria?: string };
+}) {
+  // Trata os parâmetros da URL de forma segura para Next.js 14 e 15
+  const resolvedParams = await Promise.resolve(searchParams);
+  const categoriaAtual = resolvedParams?.categoria || 'ultimos';
+
+  const artigos = await getArtigosDoSanity();
+
+  // 1. Extrai as categorias únicas baseadas no que já foi publicado
+  // Usamos Set para não repetir e filter para tirar os nulos
+  const categoriasUsadas = Array.from(
+    new Set(artigos.map((a: any) => a.categoria).filter(Boolean))
+  ) as string[];
+
+  // 2. Lógica de Filtro (Últimos 3 vs Categoria Específica)
+  let artigosExibidos = artigos;
+  if (categoriaAtual === 'ultimos') {
+    artigosExibidos = artigos.slice(0, 3); // Pega apenas os 3 primeiros
+  } else {
+    artigosExibidos = artigos.filter((a: any) => a.categoria === categoriaAtual);
+  }
+
   return (
     <div className="bg-slate-50 text-slate-900 font-sans pb-24 min-h-screen">
       
@@ -64,68 +94,101 @@ export default function BlogPage() {
       {/* ========================================== */}
       <main className="max-w-7xl mx-auto px-6 mt-16">
         
-        {/* Filtros de Categorias (Visual) */}
+        {/* Filtros de Categorias Dinâmicos */}
         <div className="flex flex-wrap items-center justify-center gap-4 mb-16">
-          <button className="px-5 py-2 bg-slate-900 text-white rounded-full text-sm font-bold shadow-md cursor-default">
+          
+          {/* Botão Fixo: Últimos Artigos */}
+          <Link 
+            href="/blog" 
+            className={`px-5 py-2 rounded-full text-sm font-bold transition-all ${
+              categoriaAtual === 'ultimos' 
+                ? 'bg-slate-900 text-white shadow-md cursor-default scale-105' 
+                : 'bg-white border border-slate-200 text-slate-600 hover:border-sky-300 hover:text-sky-600 hover:-translate-y-0.5'
+            }`}
+          >
             Últimos Artigos
-          </button>
-          <button className="px-5 py-2 bg-white border border-slate-200 text-slate-600 hover:border-sky-300 hover:text-sky-600 rounded-full text-sm font-bold transition-colors">
-            Neurociência
-          </button>
-          <button className="px-5 py-2 bg-white border border-slate-200 text-slate-600 hover:border-sky-300 hover:text-sky-600 rounded-full text-sm font-bold transition-colors">
-            Biohacking
-          </button>
-          <button className="px-5 py-2 bg-white border border-slate-200 text-slate-600 hover:border-sky-300 hover:text-sky-600 rounded-full text-sm font-bold transition-colors">
-            Nutrição
-          </button>
-        </div>
+          </Link>
 
-        {/* Grade de Posts */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {artigos.map((artigo) => (
+          {/* Botões Gerados pelo Sanity */}
+          {categoriasUsadas.map((cat: string) => (
             <Link 
-              href={`/blog/${artigo.slug}`} 
-              key={artigo.slug} 
-              className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-2 hover:border-sky-300 transition-all duration-300 flex flex-col overflow-hidden group"
+              key={cat}
+              href={`/blog?categoria=${encodeURIComponent(cat)}`} 
+              className={`px-5 py-2 rounded-full text-sm font-bold transition-all ${
+                categoriaAtual === cat 
+                  ? 'bg-slate-900 text-white shadow-md cursor-default scale-105' 
+                  : 'bg-white border border-slate-200 text-slate-600 hover:border-sky-300 hover:text-sky-600 hover:-translate-y-0.5'
+              }`}
             >
-              {/* Espaço para Imagem de Capa (Placeholder com gradiente) */}
-              <div className="h-48 w-full bg-gradient-to-br from-slate-100 to-slate-200 relative overflow-hidden">
-                 <div className="absolute inset-0 bg-sky-500/10 group-hover:bg-sky-500/0 transition-colors"></div>
-              </div>
-
-              <div className="p-8 flex flex-col flex-grow">
-                {/* Meta Dados (Categoria e Tempo) */}
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-sky-500 bg-sky-50 px-3 py-1 rounded-full border border-sky-100">
-                    {artigo.categoria}
-                  </span>
-                  <span className="text-xs font-bold text-slate-400">
-                    {artigo.tempoLeitura}
-                  </span>
-                </div>
-
-                {/* Título e Resumo */}
-                <h2 className="text-xl font-black text-slate-900 group-hover:text-sky-600 transition-colors leading-snug mb-3">
-                  {artigo.titulo}
-                </h2>
-                
-                <p className="text-sm text-slate-500 leading-relaxed mb-6 flex-grow">
-                  {artigo.resumo}
-                </p>
-
-                {/* Rodapé do Card */}
-                <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                  <span className="text-xs font-bold text-slate-400">
-                    {artigo.data}
-                  </span>
-                  <span className="text-sm font-black text-slate-900 group-hover:text-sky-500 transition-colors flex items-center gap-1">
-                    Ler Artigo <span className="text-lg transition-transform group-hover:translate-x-1">&rarr;</span>
-                  </span>
-                </div>
-              </div>
+              {cat}
             </Link>
           ))}
         </div>
+
+        {/* Grade de Posts Dinâmica */}
+        {artigosExibidos.length > 0 ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {artigosExibidos.map((artigo: any) => {
+              const dataFormatada = artigo.dataPublicacao 
+                ? new Date(artigo.dataPublicacao).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+                : 'Recente';
+
+              return (
+                <Link 
+                  href={`/blog/${artigo.slug}`} 
+                  key={artigo._id || artigo.slug} 
+                  className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-2 hover:border-sky-300 transition-all duration-300 flex flex-col overflow-hidden group"
+                >
+                  <div className="h-48 w-full bg-gradient-to-br from-slate-100 to-slate-200 relative overflow-hidden">
+                     {artigo.capaUrl ? (
+                       <Image 
+                         src={artigo.capaUrl} 
+                         alt={artigo.titulo} 
+                         fill 
+                         className="object-cover group-hover:scale-105 transition-transform duration-500" 
+                       />
+                     ) : (
+                       <div className="absolute inset-0 bg-sky-500/10 group-hover:bg-sky-500/0 transition-colors"></div>
+                     )}
+                  </div>
+
+                  <div className="p-8 flex flex-col flex-grow">
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-sky-500 bg-sky-50 px-3 py-1 rounded-full border border-sky-100">
+                        {artigo.categoria || 'Artigo'}
+                      </span>
+                      <span className="text-xs font-bold text-slate-400">
+                        {artigo.tempoLeitura ? `${artigo.tempoLeitura} min de leitura` : ''}
+                      </span>
+                    </div>
+
+                    <h2 className="text-xl font-black text-slate-900 group-hover:text-sky-600 transition-colors leading-snug mb-3">
+                      {artigo.titulo}
+                    </h2>
+                    
+                    <p className="text-sm text-slate-500 leading-relaxed mb-6 flex-grow line-clamp-3">
+                      {artigo.resumo}
+                    </p>
+
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                      <span className="text-xs font-bold text-slate-400">
+                        {dataFormatada}
+                      </span>
+                      <span className="text-sm font-black text-slate-900 group-hover:text-sky-500 transition-colors flex items-center gap-1">
+                        Ler Artigo <span className="text-lg transition-transform group-hover:translate-x-1">&rarr;</span>
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="w-full py-20 bg-white rounded-3xl border border-dashed border-slate-300 flex flex-col items-center justify-center text-center">
+            <span className="text-4xl mb-4">🧪</span>
+            <p className="text-slate-500 font-medium">Nenhum artigo encontrado nesta categoria.</p>
+          </div>
+        )}
 
       </main>
 
@@ -134,7 +197,6 @@ export default function BlogPage() {
       {/* ========================================== */}
       <section className="max-w-4xl mx-auto px-6 mt-24">
         <div className="bg-slate-900 rounded-3xl p-10 md:p-14 text-center border border-slate-800 shadow-2xl relative overflow-hidden">
-          {/* Brilho de fundo para dar aspecto premium */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
           <h3 className="text-3xl font-black text-white mb-4 relative z-10 tracking-tight">
